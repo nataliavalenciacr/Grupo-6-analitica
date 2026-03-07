@@ -1,0 +1,212 @@
+# Caso 1: Web Analytics at Quality Alloys, Inc. 
+# Integrantes del grupo: Juan Pablo Mora Benavides, Natalia Valencia Casallas & Daniela Ramírez Castaño.
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(moments)
+ruta <- "C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso_1/Web_Analytics.xls"
+excel_sheets(ruta)
+weekly_visits <- read_excel(ruta, sheet = "Weekly Visits")
+financials    <- read_excel(ruta, sheet = "Financials")
+lbs_sold_full <- read_excel(ruta, sheet = "Lbs. Sold")
+daily_visits  <- read_excel(ruta, sheet = "Daily Visits")
+head(weekly_visits)
+head(financials)
+weekly_visits <- read_excel(ruta, sheet = "Weekly Visits", skip = 3)
+financials    <- read_excel(ruta, sheet = "Financials", skip = 3)
+lbs_sold_full <- read_excel(ruta, sheet = "Lbs. Sold", skip = 1)
+daily_visits  <- read_excel(ruta, sheet = "Daily Visits", skip = 1)
+head(weekly_visits)
+head(financials)
+colnames(weekly_visits) <- c("Week", "Visits", "Unique_Visits", "Pageviews", 
+                             "Pages_Visit", "Avg_Time", "Bounce_Rate", "New_Visits")
+colnames(financials) <- c("Week", "Revenue", "Profit", "Lbs_Sold", "Inquiries")
+datos <- cbind(weekly_visits, financials[, -1])
+datos$Semana <- 1:nrow(datos)
+
+datos$Periodo <- case_when(
+  datos$Semana <= 14  ~ "1_Initial",
+  datos$Semana <= 32  ~ "2_Pre_Promotion",
+  datos$Semana <= 40  ~ "3_Promotion",
+  TRUE                ~ "4_Post_Promotion"
+)
+table(datos$Periodo)
+head(datos)
+fechas_orden <- c(
+  "May 25 - May 31", "Jun 1 - Jun 7", "Jun 8 - Jun 14", "Jun 15 - Jun 21",
+  "Jun 22 - Jun 28", "Jun 29 - Jul 5", "Jul 6 - Jul 12", "Jul 13 - Jul 19",
+  "Jul 20 - Jul 26", "Jul 27 - Aug 2", "Aug 3 - Aug 9", "Aug 10 - Aug 16",
+  "Aug 17 - Aug 23", "Aug 24 - Aug 30", "Aug 31 - Sep 6", "Sep 7 - Sep 13",
+  "Sep 14 - Sep 20", "Sep 21 - Sep 27", "Sep 28 - Oct 4", "Oct 5 - Oct 11",
+  "Oct 12 - Oct 18", "Oct 19 - Oct 25", "Oct 26 - Nov 1", "Nov 2 - Nov 8",
+  "Nov 9 - Nov 15", "Nov 16 - Nov 22", "Nov 23 - Nov 29", "Nov 30 - Dec 6",
+  "Dec 7 - Dec 13", "Dec 14 - Dec 20", "Dec 21 - Dec 27", "Dec 28 - Jan 3",
+  "Jan 4 - Jan 10", "Jan 11 - Jan 17", "Jan 18 - Jan 24", "Jan 25 - Jan 31",
+  "Feb 1 - Feb 7", "Feb 8 - Feb 14", "Feb 15 - Feb 21", "Feb 22 - Feb 28",
+  "Mar 1 - Mar 7", "Mar 8 - Mar 14", "Mar 15 - Mar 21", "Mar 22 - Mar 28",
+  "Mar 29 - Apr 4", "Apr 5 - Apr 11", "Apr 12 - Apr 18", "Apr 19 - Apr 25",
+  "Apr 26 - May 2", "May 3 - May 9", "May 10 - May 16", "May 17 - May 23",
+  "May 24 - May 30", "May 31 - Jun 6", "Jun 7 - Jun 13", "Jun 14 - Jun 20",
+  "Jun 21 - Jun 27", "Jun 28 - Jul 4", "Jul 5 - Jul 11", "Jul 12 - Jul 18",
+  "Jul 19 - Jul 25", "Jul 26 - Aug 1", "Aug 2 - Aug 8", "Aug 9 - Aug 15",
+  "Aug 16 - Aug 22", "Aug 23 - Aug 29"
+)
+datos$Week <- factor(datos$Week, levels = fechas_orden)
+
+# Gráfico 1 . Unique Visits por Semana
+ggplot(datos, aes(x = Week, y = Unique_Visits)) +
+  geom_col(fill = "darkred") +
+  scale_y_continuous(breaks = seq(0, 4000, by = 500), limits = c(0, 4000)) +
+  labs(title = "Unique Visits por Semana", x = "Semana", y = "Unique Visits") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6))
+#Gráfico 2 : Revenue por Semana
+ggplot(datos, aes(x = Week, y = Revenue)) +
+  geom_col(fill = "darkgreen") +
+  scale_y_continuous(breaks = seq(0, 1000000, by = 100000)) +
+  labs(title = "Revenue por Semana", x = "Semana", y = "Revenue (USD)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6))
+#Gráfico 3: Profit por semana
+options(scipen = 999)
+ggplot(datos, aes(x = Week, y = Profit)) +
+  geom_col(fill = "orange") +
+  scale_y_continuous(
+    breaks = seq(0, 400000, by = 50000),
+    labels = scales::comma
+  ) +
+  labs(title = "Profit por Semana", x = "Semana", y = "Profit (USD)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6))
+# Gráfico 4 : Lbs sold por Semana
+ggplot(datos, aes(x = Week, y = Lbs_Sold)) +
+  geom_col(fill = "darkblue") +
+  scale_y_continuous(breaks = seq(0, 35000, by = 5000)) +
+  labs(title = "Lbs. Sold por Semana", x = "Semana", y = "Lbs. Sold") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6))
+
+# Estadísticas descriptivas por período
+estadisticas <- datos %>%
+  group_by(Periodo) %>%
+  summarise(
+    # Visits
+    Visits_mean   = mean(Visits),
+    Visits_median = median(Visits),
+    Visits_sd     = sd(Visits),
+    Visits_min    = min(Visits),
+    Visits_max    = max(Visits),
+    
+    # Unique Visits
+    UV_mean   = mean(Unique_Visits),
+    UV_median = median(Unique_Visits),
+    UV_sd     = sd(Unique_Visits),
+    UV_min    = min(Unique_Visits),
+    UV_max    = max(Unique_Visits),
+    
+    # Revenue
+    Rev_mean   = mean(Revenue),
+    Rev_median = median(Revenue),
+    Rev_sd     = sd(Revenue),
+    Rev_min    = min(Revenue),
+    Rev_max    = max(Revenue),
+    
+    # Profit
+    Prof_mean   = mean(Profit),
+    Prof_median = median(Profit),
+    Prof_sd     = sd(Profit),
+    Prof_min    = min(Profit),
+    Prof_max    = max(Profit),
+    
+    # Lbs Sold
+    Lbs_mean   = mean(Lbs_Sold),
+    Lbs_median = median(Lbs_Sold),
+    Lbs_sd     = sd(Lbs_Sold),
+    Lbs_min    = min(Lbs_Sold),
+    Lbs_max    = max(Lbs_Sold)
+  )
+print(estadisticas)
+
+estadisticas %>% 
+  select(Periodo, Visits_mean, Visits_median, Visits_sd, Visits_min, Visits_max) %>%
+  print()
+
+estadisticas %>% 
+  select(Periodo, UV_mean, UV_median, UV_sd, UV_min, UV_max) %>%
+  print()
+
+estadisticas %>% 
+  select(Periodo, Rev_mean, Rev_median, Rev_sd, Rev_min, Rev_max) %>%
+  print()
+
+estadisticas %>% 
+  select(Periodo, Prof_mean, Prof_median, Prof_sd, Prof_min, Prof_max) %>%
+  print()
+
+estadisticas %>% 
+  select(Periodo, Lbs_mean, Lbs_median, Lbs_sd, Lbs_min, Lbs_max) %>%
+  print()
+install.packages("writexl")
+library(writexl)
+tabla_descriptiva <- function(periodo_nombre) {
+  d <- estadisticas %>% filter(Periodo == periodo_nombre)
+  data.frame(
+    Medida         = c("mean", "median", "std. dev.", "minimum", "maximum"),
+    Visits         = round(c(d$Visits_mean, d$Visits_median, d$Visits_sd, d$Visits_min, d$Visits_max), 2),
+    Unique_Visits  = round(c(d$UV_mean, d$UV_median, d$UV_sd, d$UV_min, d$UV_max), 2),
+    Revenue        = round(c(d$Rev_mean, d$Rev_median, d$Rev_sd, d$Rev_min, d$Rev_max), 2),
+    Profit         = round(c(d$Prof_mean, d$Prof_median, d$Prof_sd, d$Prof_min, d$Prof_max), 2),
+    Lbs_Sold       = round(c(d$Lbs_mean, d$Lbs_median, d$Lbs_sd, d$Lbs_min, d$Lbs_max), 2)
+  )
+}
+
+write_xlsx(
+  list(
+    "Initial"        = tabla_descriptiva("1_Initial"),
+    "Pre-Promotion"  = tabla_descriptiva("2_Pre_Promotion"),
+    "Promotion"      = tabla_descriptiva("3_Promotion"),
+    "Post-Promotion" = tabla_descriptiva("4_Post_Promotion")
+  ),
+  path = "C:/Users/natal/Downloads/Estadisticas_QA.xlsx"
+)
+# Medias por tiempo (punto 3)
+medias <- data.frame(
+Periodo        = c("Initial", "Pre-Promotion", "Promotion", "Post-Promotion"),
+Visits         = estadisticas$Visits_mean,
+Unique_Visits  = estadisticas$UV_mean,
+Revenue        = estadisticas$Rev_mean,
+Profit         = estadisticas$Prof_mean,
+Lbs_Sold       = estadisticas$Lbs_mean
+)
+medias$Periodo <- factor(medias$Periodo, 
+                         levels = c("Initial", "Pre-Promotion", "Promotion", "Post-Promotion"))
+# Gráfica 1: Media de Visitas por período
+ggplot(medias, aes(x = Periodo, y = Visits)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = round(Visits, 0)), vjust = -0.5, size = 4) +
+  labs(title = "Media de Visitas por Período", x = "Período", y = "Visits") +
+  theme_minimal()
+# Gráfica 2: Media de Unique Visits por período
+ggplot(medias, aes(x = Periodo, y = Unique_Visits)) +
+  geom_col(fill = "darkred") +
+  geom_text(aes(label = round(Unique_Visits, 0)), vjust = -0.5, size = 4) +
+  labs(title = "Media de Unique Visits por Período", x = "Período", y = "Unique Visits") +
+  theme_minimal()
+# Gráfica 3: Media de Revenue por período
+ggplot(medias, aes(x = Periodo, y = Revenue)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Revenue, 0)), vjust = -0.5, size = 4) +
+  labs(title = "Media de Revenue por Período", x = "Período", y = "Revenue (USD)") +
+  theme_minimal()
+# Gráfica 4:Media de Profit por período
+ggplot(medias, aes(x = Periodo, y = Profit)) +
+  geom_col(fill = "orange") +
+  geom_text(aes(label = round(Profit, 0)), vjust = -0.5, size = 4) +
+  labs(title = "Media de Profit por Período", x = "Período", y = "Profit (USD)") +
+  theme_minimal()
+# Gráfica 5: Media de Lbs. Sold por período
+ggplot(medias, aes(x = Periodo, y = Lbs_Sold)) +
+  geom_col(fill = "darkblue") +
+  geom_text(aes(label = round(Lbs_Sold, 0)), vjust = -0.5, size = 4) +
+  labs(title = "Media de Lbs. Sold por Período", x = "Período", y = "Lbs. Sold") +
+  theme_minimal()
