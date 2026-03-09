@@ -168,7 +168,7 @@ write_xlsx(
     "Post-Promotion" = tabla_descriptiva("4_Post_Promotion")
   ),
   path = "C:/Users/natal/Downloads/Estadisticas_QA.xlsx"
-)
+) #Cambiar ruta según donde se abra 
 # Medias por tiempo (punto 3)
 medias <- data.frame(
 Periodo        = c("Initial", "Pre-Promotion", "Promotion", "Post-Promotion"),
@@ -405,6 +405,7 @@ ggplot(sistemas, aes(x = reorder(OS, Visits), y = Visits)) +
   coord_flip() +
   labs(title = "6) Top 10 Operating Systems", x = "Sistema Operativo", y = "Visits") +
   theme_minimal()
+
 
 
 
