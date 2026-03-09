@@ -210,3 +210,106 @@ ggplot(medias, aes(x = Periodo, y = Lbs_Sold)) +
   geom_text(aes(label = round(Lbs_Sold, 0)), vjust = -0.5, size = 4) +
   labs(title = "Media de Lbs. Sold por Período", x = "Período", y = "Lbs. Sold") +
   theme_minimal()
+
+# Punto 8 -------------------------------------------------------------------------------------------------------------------------------------------
+# Leer la hoja Lbs. Sold completa
+lbs_full <- read_excel(ruta, sheet = "Lbs. Sold", skip = 1)
+colnames(lbs_full) <- c("Week", "Lbs_Sold")
+
+
+# Convertir el número serial de Excel a fecha real
+lbs_full$Week <- as.Date(lbs_full$Week, origin = "1899-12-30")
+
+# Verificar
+head(lbs_full, 5)
+nrow(lbs_full)
+
+# Eliminar filas con NA
+lbs_full <- lbs_full %>% filter(!is.na(Lbs_Sold))
+
+# ---- 8a: Estadísticas descriptivas ----
+lbs_mean <- mean(lbs_full$Lbs_Sold)
+lbs_sd   <- sd(lbs_full$Lbs_Sold)
+lbs_n    <- nrow(lbs_full)
+
+cat("=== Estadísticas Lbs. Sold (2005-2010) ===\n")
+cat("Media:            ", round(lbs_mean, 2), "\n")
+cat("Mediana:          ", round(median(lbs_full$Lbs_Sold), 2), "\n")
+cat("Desv. Estándar:   ", round(lbs_sd, 2), "\n")
+cat("Mínimo:           ", min(lbs_full$Lbs_Sold), "\n")
+cat("Máximo:           ", max(lbs_full$Lbs_Sold), "\n")
+cat("N observaciones:  ", lbs_n, "\n")
+
+# ---- 8b: Histograma ----
+ggplot(lbs_full, aes(x = Lbs_Sold)) +
+  geom_histogram(binwidth = 2000, fill = "steelblue", color = "black") +
+  labs(title = "Histograma de Lbs. Sold (Ene 2005 - Jul 2010)",
+       x = "Lbs. Sold", y = "Frecuencia") +
+  theme_minimal()
+
+# ---- 8c: Ver si es bell-shaped (visual) ----
+# Se interpreta visualmente desde el histograma anterior
+
+# ---- 8d: Regla Empírica - Tabla general ±1, ±2, ±3 desv. est. ----
+
+# Calcular z-scores
+lbs_full <- lbs_full %>%
+  mutate(z_score = (Lbs_Sold - lbs_mean) / lbs_sd)
+
+# Conteos reales
+obs_1sd <- sum(abs(lbs_full$z_score) <= 1)
+obs_2sd <- sum(abs(lbs_full$z_score) <= 2)
+obs_3sd <- sum(abs(lbs_full$z_score) <= 3)
+
+tabla_empirica <- data.frame(
+  Intervalo            = c("mean ± 1 std. dev.", "mean ± 2 std. dev.", "mean ± 3 std. dev."),
+  Teorico_pct          = c("68%", "95%", "99%"),
+  Teorico_obs          = round(c(0.68 * lbs_n, 0.95 * lbs_n, 0.99 * lbs_n), 0),
+  Real_obs             = c(obs_1sd, obs_2sd, obs_3sd)
+)
+
+cat("\n=== 8d: Regla Empírica ===\n")
+print(tabla_empirica)
+
+# ---- 8e: Tabla detallada por intervalos unilaterales ----
+
+obs_pos1  <- sum(lbs_full$z_score > 0  & lbs_full$z_score <= 1)   # 0 a +1
+obs_neg1  <- sum(lbs_full$z_score >= -1 & lbs_full$z_score < 0)   # -1 a 0
+obs_p1p2  <- sum(lbs_full$z_score > 1  & lbs_full$z_score <= 2)   # +1 a +2
+obs_n2n1  <- sum(lbs_full$z_score >= -2 & lbs_full$z_score < -1)  # -2 a -1
+obs_p2p3  <- sum(lbs_full$z_score > 2  & lbs_full$z_score <= 3)   # +2 a +3
+obs_n3n2  <- sum(lbs_full$z_score >= -3 & lbs_full$z_score < -2)  # -3 a -2
+
+# Teórico para cada mitad (la distribución normal es simétrica)
+teo_mitad1sd  <- round(0.34 * lbs_n, 0)   # ~34% a cada lado de la media
+teo_1a2       <- round(0.135 * lbs_n, 0)  # ~13.5% entre 1 y 2 SD
+teo_2a3       <- round(0.021 * lbs_n, 0)  # ~2.1% entre 2 y 3 SD
+
+tabla_detalle <- data.frame(
+  Intervalo     = c("mean a mean + 1 std. dev.",
+                    "mean - 1 std. dev. a mean",
+                    "1 std. dev. a 2 std. dev.",
+                    "-1 std. dev. a -2 std. dev.",
+                    "2 std. dev. a 3 std. dev.",
+                    "-2 std. dev. a -3 std. dev."),
+  Teorico_obs   = c(teo_mitad1sd, teo_mitad1sd,
+                    teo_1a2, teo_1a2,
+                    teo_2a3, teo_2a3),
+  Real_obs      = c(obs_pos1, obs_neg1,
+                    obs_p1p2, obs_n2n1,
+                    obs_p2p3, obs_n3n2)
+)
+
+print(tabla_detalle)
+
+#8g: Skewness y Kurtosis
+install.packages("moments")
+library(moments)
+
+lbs_skew <- skewness(lbs_full$Lbs_Sold)
+lbs_kurt  <- kurtosis(lbs_full$Lbs_Sold) - 3  # exceso de kurtosis (R da kurtosis normal = 3)
+
+print(lbs_skew)
+print(lbs_kurt)
+
+
