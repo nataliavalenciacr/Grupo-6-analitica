@@ -312,4 +312,99 @@ lbs_kurt  <- kurtosis(lbs_full$Lbs_Sold) - 3  # exceso de kurtosis (R da kurtosi
 print(lbs_skew)
 print(lbs_kurt)
 
+# Punto 9------------------------------
+
+# Ver qué hay en la hoja Demographics
+demographics <- read_excel(ruta, sheet = "Demographics")
+head(demographics, 20)
+colnames(demographics)
+nrow(demographics)
+
+print(demographics, n = 77)
+
+# ----- Gráfico 1: All Traffic Sources -----
+trafico <- data.frame(
+  Fuente = c("Referring Sites", "Search Engines", "Direct Traffic", "Other"),
+  Visits = c(38754, 20964, 9709, 4)
+)
+
+ggplot(trafico, aes(x = reorder(Fuente, -Visits), y = Visits)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = scales::comma(Visits)), vjust = -0.5, size = 4) +
+  labs(title = "1) All Traffic Sources", x = "Fuente", y = "Visits") +
+  theme_minimal()
+
+# ----- Gráfico 2: Top 10 Referring Sites -----
+referring <- data.frame(
+  Sitio  = c("googleads", "pagead2.google", "sedoparking.com", "globalspec.com",
+             "searchportal", "freepatentsonline", "thomasnet.com",
+             "mu.com", "mail.google.com", "psicofxp.com"),
+  Visits = c(15626, 8044, 3138, 693, 582, 389, 379, 344, 337, 310)
+)
+
+ggplot(referring, aes(x = reorder(Sitio, Visits), y = Visits)) +
+  geom_col(fill = "darkblue") +
+  geom_text(aes(label = scales::comma(Visits)), hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(title = "2) Top 10 Referring Sites", x = "Sitio", y = "Visits") +
+  theme_minimal()
+
+# ----- Gráfico 3: Top 10 Search Engine Sources -----
+buscadores <- data.frame(
+  Motor  = c("google", "yahoo", "search", "msn", "aol",
+             "ask", "live", "bing", "voila", "netscape"),
+  Visits = c(17681, 1250, 592, 424, 309, 268, 145, 122, 63, 26)
+)
+
+ggplot(buscadores, aes(x = reorder(Motor, Visits), y = Visits)) +
+  geom_col(fill = "darkred") +
+  geom_text(aes(label = scales::comma(Visits)), hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(title = "3) Top 10 Search Engine Sources", x = "Motor de Búsqueda", y = "Visits") +
+  theme_minimal()
+
+# ----- Gráfico 4: Top 10 Geographic Sources -----
+geografico <- data.frame(
+  Region = c("South America", "Northern America", "Central America",
+             "Western Europe", "Eastern Asia", "Northern Europe",
+             "Southern Asia", "South-Eastern Asia", "Southern Europe", "Eastern Europe"),
+  Visits = c(22616, 17509, 6776, 5214, 3228, 2721, 2589, 1968, 1538, 1427)
+)
+
+ggplot(geografico, aes(x = reorder(Region, Visits), y = Visits)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = scales::comma(Visits)), hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(title = "4) Top 10 Geographic Sources", x = "Región", y = "Visits") +
+  theme_minimal()
+
+# ----- Gráfico 5: Top 10 Browsers -----
+browsers <- data.frame(
+  Browser = c("Internet Explorer", "Firefox", "Opera", "Safari", "Chrome",
+              "Mozilla", "Netscape", "Konqueror", "SeaMonkey", "Camino"),
+  Visits  = c(53080, 13142, 938, 850, 792, 478, 47, 31, 24, 9)
+)
+
+ggplot(browsers, aes(x = reorder(Browser, Visits), y = Visits)) +
+  geom_col(fill = "purple") +
+  geom_text(aes(label = scales::comma(Visits)), hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(title = "5) Top 10 Browsers Used", x = "Navegador", y = "Visits") +
+  theme_minimal()
+
+# ----- Gráfico 6: Top 10 Operating Systems -----
+sistemas <- data.frame(
+  OS     = c("Windows", "Macintosh", "Linux", "(not set)", "iPhone",
+             "SymbianOS", "FreeBSD", "iPod", "Playstation 3", "Playstation Portable"),
+  Visits = c(67063, 1184, 1045, 48, 29, 20, 18, 8, 4, 3)
+)
+
+ggplot(sistemas, aes(x = reorder(OS, Visits), y = Visits)) +
+  geom_col(fill = "darkorange") +
+  geom_text(aes(label = scales::comma(Visits)), hjust = -0.1, size = 3) +
+  coord_flip() +
+  labs(title = "6) Top 10 Operating Systems", x = "Sistema Operativo", y = "Visits") +
+  theme_minimal()
+
+
 
