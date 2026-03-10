@@ -211,6 +211,124 @@ ggplot(medias, aes(x = Periodo, y = Lbs_Sold)) +
   labs(title = "Media de Lbs. Sold por Período", x = "Período", y = "Lbs. Sold") +
   theme_minimal()
 
+#  PUNTO 5 — Scatter: Revenue vs. Lbs. Sold  +  Correlación
+cat("── PUNTO 5: Revenue vs. Lbs. Sold ────────────────────\n")
+
+# Correlación de Pearson entre Revenue y Lbs. Sold
+cor_rev_lbs <- cor(datos$Revenue, datos$Lbs_Sold, use = "complete.obs")
+cat(sprintf("Coeficiente de correlación (Revenue ~ Lbs. Sold): %.4f\n\n", cor_rev_lbs))
+
+# Interpretación automática del coeficiente
+if (abs(cor_rev_lbs) >= 0.9) {
+  cat("Interpretación: correlación MUY FUERTE\n")
+} else if (abs(cor_rev_lbs) >= 0.7) {
+  cat("Interpretación: correlación FUERTE\n")
+} else if (abs(cor_rev_lbs) >= 0.5) {
+  cat("Interpretación: correlación MODERADA\n")
+} else {
+  cat("Interpretación: correlación DÉBIL\n")
+}
+
+# Gráfico de dispersión — Revenue vs. Lbs. Sold
+p5 <- ggplot(datos, aes(x = Lbs_Sold, y = Revenue)) +
+  geom_point(color = "#2C7BB6", alpha = 0.75, size = 3) +
+  geom_smooth(method = "lm", color = "#ec0f13", se = TRUE, linewidth = 1) +
+  labs(
+    title    = "Revenue vs. Lbs. Sold",
+    subtitle = sprintf("r = %.4f", cor_rev_lbs),
+    x        = "Libras vendidas (Lbs. Sold)",
+    y        = "Ingresos (Revenue, USD)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold"))
+
+print(p5)
+ggsave("punto5_revenue_vs_lbs_sold.png", plot = p5, width = 7, height = 5, dpi = 150)
+
+cat("\n")
+
+#  PUNTO 6 — Scatter: Revenue vs. Visits  +  Correlación
+cat("── PUNTO 6: Revenue vs. Visits ───────────────────────\n")
+
+# Correlación de Pearson entre Revenue y Visits (total de visitas)
+cor_rev_vis <- cor(datos$Revenue, datos$Visits, use = "complete.obs")
+cat(sprintf("Coeficiente de correlación (Revenue ~ Visits): %.4f\n\n", cor_rev_vis))
+
+if (abs(cor_rev_vis) >= 0.9) {
+  cat("Interpretación: correlación MUY FUERTE\n")
+} else if (abs(cor_rev_vis) >= 0.7) {
+  cat("Interpretación: correlación FUERTE\n")
+} else if (abs(cor_rev_vis) >= 0.5) {
+  cat("Interpretación: correlación MODERADA\n")
+} else {
+  cat("Interpretación: correlación DÉBIL\n")
+}
+
+# Gráfico de dispersión — Revenue vs. Visits
+p6 <- ggplot(datos, aes(x = Visits, y = Revenue)) +
+  geom_point(color = "#1A9641", alpha = 0.75, size = 3) +
+  geom_smooth(method = "lm", color = "#D7191C", se = TRUE, linewidth = 1) +
+  labs(
+    title    = "Revenue vs. Visits",
+    subtitle = sprintf("r = %.4f", cor_rev_vis),
+    x        = "Visitas semanales al sitio web (Visits)",
+    y        = "Ingresos (Revenue, USD)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold"))
+
+print(p6)
+ggsave("punto6_revenue_vs_visits.png", plot = p6, width = 7, height = 5, dpi = 150)
+
+cat("\n")
+
+#  PUNTO 7 — Resumen, comparación y otras correlaciones
+cat("── PUNTO 7: Resumen y análisis adicional ─────────────\n")
+
+# ── 7a. Tabla completa de correlaciones entre todas las variables de interés ──
+matriz_cor <- cor(datos[ , c("Visits", "Unique_Visits", "Revenue", "Profit", "Lbs_Sold")],
+                  use = "complete.obs")
+
+cat("\nMatriz de correlaciones (todas las variables):\n")
+print(round(matriz_cor, 4))
+
+# ── 7b. Correlaciones adicionales sugeridas por el caso ──────
+cor_rev_uvis <- cor(datos$Revenue, datos$Unique_Visits, use = "complete.obs")
+cat(sprintf("\nCorrelación Revenue ~ Unique Visits : %.4f\n", cor_rev_uvis))
+
+# Profit vs. Visits
+cor_pro_vis <- cor(datos$Profit, datos$Visits, use = "complete.obs")
+cat(sprintf("Correlación Profit  ~ Visits        : %.4f\n", cor_pro_vis))
+
+# Lbs. Sold vs. Visits
+cor_lbs_vis <- cor(datos$Lbs_Sold, datos$Visits, use = "complete.obs")
+cat(sprintf("Correlación Lbs. Sold ~ Visits      : %.4f\n", cor_lbs_vis))
+
+# 7c. Gráfico comparativo: los dos scatterplots juntos 
+p7_comparativo <- grid.arrange(
+  p5 + theme(plot.margin = margin(5, 10, 5, 5)),
+  p6 + theme(plot.margin = margin(5, 5,  5, 10)),
+  ncol = 2,
+  top  = "Relaciones clave: Revenue con Lbs. Sold y Visits"
+)
+
+ggsave("punto7_comparativo.png", plot = p7_comparativo, width = 13, height = 5, dpi = 150)
+
+#  7d. Scatterplot adicional: Revenue vs. Unique Visits 
+p7_uvis <- ggplot(datos, aes(x = Unique_Visits, y = Revenue)) +
+  geom_point(color = "#984EA3", alpha = 0.75, size = 3) +
+  geom_smooth(method = "lm", color = "#FF7F00", se = TRUE, linewidth = 1) +
+  labs(
+    title    = "Revenue vs. Unique Visits",
+    subtitle = sprintf("r = %.4f", cor_rev_uvis),
+    x        = "Visitantes únicos semanales (Unique Visits)",
+    y        = "Ingresos (Revenue, USD)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold"))
+
+print(p7_uvis)
+
 # Punto 8 -------------------------------------------------------------------------------------------------------------------------------------------
 # Leer la hoja Lbs. Sold completa
 lbs_full <- read_excel(ruta, sheet = "Lbs. Sold", skip = 1)
@@ -405,6 +523,7 @@ ggplot(sistemas, aes(x = reorder(OS, Visits), y = Visits)) +
   coord_flip() +
   labs(title = "6) Top 10 Operating Systems", x = "Sistema Operativo", y = "Visits") +
   theme_minimal()
+
 
 
 
