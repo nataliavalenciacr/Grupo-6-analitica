@@ -255,3 +255,439 @@ if (prueba_4$p.value < 0.05) {
 write_xlsx(tabla_4,
   "C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso 2/tabla_4.xlsx") #Aquí si quieren descargar las tablas deben cambiar el lugar para que les corra el código
   
+
+
+# Crear variable Comedy (1 = comedia, 0 = otro genero) necesaria para preguntas 5 y 7
+datos <- datos %>%
+  mutate(Comedy = ifelse(Genre == "Comedy", 1, 0))
+
+# Crear variable ROI necesaria para la pregunta 5b
+datos <- datos %>%
+  mutate(ROI = (Total_US_Gross - Budget) / Budget)
+
+cat("Datos cargados correctamente:", nrow(datos), "películas.\n\n")
+
+
+# ============================================================
+# PREGUNTA 5: MODELO DE REGRESIÓN ANTES DE LA PRODUCCIÓN
+# ============================================================
+# Variables predictoras consideradas (factores conocidos ANTES de producir):
+#   - Budget       : presupuesto de producción (proxy de calidad y elenco)
+#   - Comedy       : indicador de género comedia (1) vs. otro (0)
+#   - MPAA_D       : indicador de clasificación R (1) vs. otra (0)
+#   - Known_Story  : historia conocida/adaptación (1) vs. guion original (0)
+#   - Sequel       : secuela (1) vs. primera película (0)
+
+cat("===========================================================\n")
+cat(" PREGUNTA 5: Regresión — factores PRE-PRODUCCIÓN\n")
+cat("===========================================================\n\n")
+
+# ----------------------------------------------------------
+# 5a. Modelo completo con todas las variables pre-producción
+# ----------------------------------------------------------
+modelo_5a <- lm(
+  Total_US_Gross ~ Budget + Comedy + MPAA_D + Known_Story + Sequel,
+  data = datos
+)
+
+cat("--- 5a. Modelo completo (pre-producción) ---\n")
+summary(modelo_5a)
+
+# ----------------------------------------------------------
+# 5b. Eliminar variables no significativas al 10% (p > 0.10)
+#     Se realiza eliminación progresiva (backward elimination):
+#     Se retira de a una variable, comenzando por la de mayor p-value.
+# ----------------------------------------------------------
+
+# Iteración 1: eliminar Known_Story (p-value más alto > 0.10)
+modelo_5b_iter1 <- lm(
+  Total_US_Gross ~ Budget + Comedy + MPAA_D + Sequel,
+  data = datos
+)
+
+cat("\n--- 5b. Iteración 1: sin Known_Story ---\n")
+summary(modelo_5b_iter1)
+
+# Iteración 2: eliminar MPAA_D si sigue siendo no significativa
+modelo_5b_iter2 <- lm(
+  Total_US_Gross ~ Budget + Comedy + Sequel,
+  data = datos
+)
+
+cat("\n--- 5b. Iteración 2: sin MPAA_D ---\n")
+summary(modelo_5b_iter2)
+
+# Iteración 3: eliminar Comedy si sigue siendo no significativa
+modelo_5b_final <- lm(
+  Total_US_Gross ~ Budget + Sequel,
+  data = datos
+)
+
+cat("\n--- 5b. MODELO FINAL pre-producción (solo variables significativas al 10%) ---\n")
+summary(modelo_5b_final)
+
+# Tabla resumen de coeficientes del modelo final
+tabla_5b <- as.data.frame(summary(modelo_5b_final)$coefficients)
+tabla_5b$Variable <- rownames(tabla_5b)
+tabla_5b <- tabla_5b %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+
+print(tabla_5b)
+write_xlsx(tabla_5b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_5b_modelo_preproduccion.xlsx")  # <-- Ajustar ruta si desea guardar
+
+# ----------------------------------------------------------
+# 5c. Interpretación: ¿Secuelas vs. no secuelas?
+#     Si el coeficiente de Sequel > 0, las secuelas recaudan MÁS.
+#     Si el coeficiente de Sequel < 0, las secuelas recaudan MENOS.
+# ----------------------------------------------------------
+coef_sequel <- coef(modelo_5b_final)["Sequel"]
+
+cat("\n--- 5c. Efecto de ser secuela sobre Total U.S. Gross ---\n")
+cat("Coeficiente de Sequel:", scales::dollar(coef_sequel), "\n")
+
+if (coef_sequel > 0) {
+  cat("Interpretación: Las SECUELAS recaudan en promedio",
+      scales::dollar(coef_sequel),
+      "MÁS que las películas no secuelas,\n",
+      "manteniendo constantes las demás variables.\n")
+} else {
+  cat("Interpretación: Las SECUELAS recaudan en promedio",
+      scales::dollar(abs(coef_sequel)),
+      "MENOS que las películas no secuelas,\n",
+      "manteniendo constantes las demás variables.\n")
+}
+
+
+# ============================================================
+# PREGUNTA 6: MODELO DE REGRESIÓN — APERTURA DE FIN DE SEMANA
+# ============================================================
+# Factores adicionales conocidos ANTES del fin de semana de apertura:
+#   - Opening_Theatres : número de salas en el fin de semana de estreno
+#   - Summer           : estreno en temporada de verano (1/0)
+#   - Holiday          : estreno en día festivo (1/0)
+#   - Christmas        : estreno en temporada navideña (1/0)
+# Variable dependiente: Opening_Gross (recaudación del fin de semana de apertura)
+
+cat("\n===========================================================\n")
+cat(" PREGUNTA 6: Regresión — Opening Weekend Box-Office Gross\n")
+cat("===========================================================\n\n")
+
+# ----------------------------------------------------------
+# 6a. Modelo completo (pre-producción + factores de apertura)
+# ----------------------------------------------------------
+modelo_6a <- lm(
+  Opening_Gross ~ Budget + Comedy + MPAA_D + Known_Story + Sequel +
+    Opening_Theatres + Summer + Holiday + Christmas,
+  data = datos
+)
+
+cat("--- 6a. Modelo completo apertura ---\n")
+summary(modelo_6a)
+
+# ----------------------------------------------------------
+# 6b. Eliminación backward de variables no significativas al 10%
+# ----------------------------------------------------------
+
+# Iteración 1: eliminar Holiday (p-value más alto)
+modelo_6b_iter1 <- lm(
+  Opening_Gross ~ Budget + Comedy + MPAA_D + Known_Story + Sequel +
+    Opening_Theatres + Summer + Christmas,
+  data = datos
+)
+cat("\n--- 6b. Iteración 1: sin Holiday ---\n")
+summary(modelo_6b_iter1)
+
+# Iteración 2: eliminar Comedy
+modelo_6b_iter2 <- lm(
+  Opening_Gross ~ Budget + MPAA_D + Known_Story + Sequel +
+    Opening_Theatres + Summer + Christmas,
+  data = datos
+)
+cat("\n--- 6b. Iteración 2: sin Comedy ---\n")
+summary(modelo_6b_iter2)
+
+# Iteración 3: eliminar MPAA_D
+modelo_6b_iter3 <- lm(
+  Opening_Gross ~ Budget + Known_Story + Sequel +
+    Opening_Theatres + Summer + Christmas,
+  data = datos
+)
+cat("\n--- 6b. Iteración 3: sin MPAA_D ---\n")
+summary(modelo_6b_iter3)
+
+# Iteración 4: eliminar Christmas si no es significativa
+modelo_6b_final <- lm(
+  Opening_Gross ~ Budget + Known_Story + Sequel +
+    Opening_Theatres + Summer,
+  data = datos
+)
+cat("\n--- 6b. MODELO FINAL apertura (solo variables significativas al 10%) ---\n")
+summary(modelo_6b_final)
+
+# Tabla resumen de coeficientes del modelo final
+tabla_6b <- as.data.frame(summary(modelo_6b_final)$coefficients)
+tabla_6b$Variable <- rownames(tabla_6b)
+tabla_6b <- tabla_6b %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+
+print(tabla_6b)
+write_xlsx(tabla_6b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6b_modelo_apertura.xlsx")  # <-- Ajustar ruta si desea guardar
+
+# ----------------------------------------------------------
+# 6c. Interpretación de cada coeficiente del modelo final
+# ----------------------------------------------------------
+cat("\n--- 6c. Interpretación de los coeficientes del modelo final ---\n")
+coefs_6 <- coef(modelo_6b_final)
+
+cat("\nIntercepto:", scales::dollar(coefs_6["(Intercept)"]),
+    "\n  -> Recaudación base estimada cuando todas las variables son 0.\n")
+
+cat("\nBudget:", coefs_6["Budget"],
+    "\n  -> Por cada dólar adicional en presupuesto, la recaudación de apertura",
+    "\n     aumenta en promedio", round(coefs_6["Budget"], 4),
+    "dólares, manteniendo lo demás constante.\n")
+
+cat("\nKnown_Story:", scales::dollar(coefs_6["Known_Story"]),
+    "\n  -> Las películas basadas en historias conocidas recaudan en promedio",
+    scales::dollar(coefs_6["Known_Story"]),
+    "MÁS (o MENOS si es negativo) que las originales en el fin de semana de apertura.\n")
+
+cat("\nSequel:", scales::dollar(coefs_6["Sequel"]),
+    "\n  -> Las secuelas recaudan en promedio", scales::dollar(coefs_6["Sequel"]),
+    "MÁS (o MENOS si es negativo) que las no-secuelas.\n")
+
+cat("\nOpening_Theatres:", scales::dollar(coefs_6["Opening_Theatres"]),
+    "\n  -> Por cada sala adicional en la que se exhibe la película,",
+    "\n     la recaudación de apertura aumenta en promedio",
+    scales::dollar(coefs_6["Opening_Theatres"]), "dólares.\n")
+
+cat("\nSummer:", scales::dollar(coefs_6["Summer"]),
+    "\n  -> Las películas estrenadas en verano recaudan en promedio",
+    scales::dollar(coefs_6["Summer"]),
+    "MÁS (o MENOS si es negativo) que las estrenadas fuera de verano.\n")
+
+# ----------------------------------------------------------
+# 6d. Si el número de salas aumenta en 100:
+#     Estimación puntual e IC 95% del cambio esperado en Opening_Gross
+# ----------------------------------------------------------
+cat("\n--- 6d. Efecto de +100 salas sobre Opening_Gross ---\n")
+
+# El cambio esperado es simplemente 100 * coeficiente de Opening_Theatres
+cambio_puntual <- 100 * coefs_6["Opening_Theatres"]
+cat("Estimación puntual del cambio:", scales::dollar(cambio_puntual), "\n")
+
+# IC 95% para el coeficiente de Opening_Theatres
+ic_teatros <- confint(modelo_6b_final, "Opening_Theatres", level = 0.95)
+ic_cambio_inferior <- 100 * ic_teatros[1]
+ic_cambio_superior <- 100 * ic_teatros[2]
+
+cat("IC 95% para el cambio al agregar 100 salas:\n")
+cat("  Límite inferior:", scales::dollar(ic_cambio_inferior), "\n")
+cat("  Límite superior:", scales::dollar(ic_cambio_superior), "\n")
+
+tabla_6d <- data.frame(
+  Descripcion         = c("Estimación puntual", "IC 95% - Límite inferior", "IC 95% - Límite superior"),
+  Cambio_Opening_Gross = scales::dollar(c(cambio_puntual, ic_cambio_inferior, ic_cambio_superior))
+)
+print(tabla_6d)
+write_xlsx(tabla_6d,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6d_efecto_salas.xlsx")  # <-- Ajustar ruta si desea guardar
+
+
+# ============================================================
+# PREGUNTA 7: RELACIÓN Total U.S. Gross ~ Opening Weekend Gross
+# ============================================================
+# Se examina la "sabiduría convencional" de Hollywood:
+# "El 25% de la recaudación total en EE.UU. llega durante el fin de semana de apertura"
+# Si eso fuera cierto, entonces: Opening_Gross = 0.25 * Total_US_Gross
+# => Total_US_Gross = (1/0.25) * Opening_Gross = 4 * Opening_Gross
+# => El coeficiente de pendiente debería ser 4.
+
+cat("\n===========================================================\n")
+cat(" PREGUNTA 7: Total U.S. Gross ~ Opening Weekend Gross\n")
+cat("===========================================================\n\n")
+
+# ----------------------------------------------------------
+# 7a. Regresión lineal simple: Total_US_Gross ~ Opening_Gross
+# ----------------------------------------------------------
+modelo_7a <- lm(Total_US_Gross ~ Opening_Gross, data = datos)
+
+cat("--- 7a. Regresión lineal simple ---\n")
+summary(modelo_7a)
+
+tabla_7a <- as.data.frame(summary(modelo_7a)$coefficients)
+tabla_7a$Variable <- rownames(tabla_7a)
+tabla_7a <- tabla_7a %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+print(tabla_7a)
+
+# ----------------------------------------------------------
+# 7b. Valor teórico de la pendiente si el 25% viniera del opening
+#     Total_US_Gross = beta0 + beta1 * Opening_Gross
+#     Si Opening_Gross = 0.25 * Total_US_Gross
+#     => beta1 = 1/0.25 = 4
+# ----------------------------------------------------------
+beta1_teorico <- 4
+cat("\n--- 7b. Valor teórico de la pendiente (si Opening = 25% del total) ---\n")
+cat("Si el 25% de la recaudación total llega en apertura,\n")
+cat("entonces la pendiente debería ser beta1 =", beta1_teorico, "\n")
+cat("(es decir, Total_US_Gross = 4 × Opening_Gross)\n")
+
+# ----------------------------------------------------------
+# 7c. Prueba de hipótesis: ¿Se puede rechazar que beta1 = 4?
+#     H0: beta1 = 4  (la sabiduría convencional es correcta)
+#     H1: beta1 ≠ 4
+#
+#     Estadístico t = (beta1_estimado - beta1_teorico) / SE(beta1)
+# ----------------------------------------------------------
+cat("\n--- 7c. Prueba de hipótesis: H0: beta1 = 4 ---\n")
+
+beta1_estimado <- coef(modelo_7a)["Opening_Gross"]
+se_beta1       <- summary(modelo_7a)$coefficients["Opening_Gross", "Std. Error"]
+gl             <- df.residual(modelo_7a)
+
+t_stat_7c <- (beta1_estimado - beta1_teorico) / se_beta1
+p_value_7c <- 2 * pt(-abs(t_stat_7c), df = gl)  # prueba bilateral
+
+cat("Pendiente estimada (beta1):", round(beta1_estimado, 4), "\n")
+cat("Valor teórico bajo H0:     ", beta1_teorico, "\n")
+cat("Error estándar de beta1:   ", round(se_beta1, 4), "\n")
+cat("Estadístico t:             ", round(t_stat_7c, 4), "\n")
+cat("Grados de libertad:        ", gl, "\n")
+cat("p-value (bilateral):       ", round(p_value_7c, 6), "\n")
+
+if (p_value_7c < 0.05) {
+  cat("Decisión: Rechazamos H0 ✔\n")
+  cat("Conclusión: La sabiduría convencional (25%) puede RECHAZARSE a nivel 5%.\n")
+} else {
+  cat("Decisión: No rechazamos H0 ✘\n")
+  cat("Conclusión: No hay evidencia suficiente para rechazar que beta1 = 4.\n")
+}
+
+# ----------------------------------------------------------
+# 7d. Crítica al análisis estadístico de 7c
+# ----------------------------------------------------------
+cat("\n--- 7d. Crítica del análisis en 7c ---\n")
+cat("CRÍTICA ESTADÍSTICA:\n")
+cat("1. El modelo de regresión lineal simple asume que la relación entre\n")
+cat("   Opening_Gross y Total_US_Gross pasa por el origen (intercepto = 0)\n")
+cat("   si queremos representar fielmente la relación proporcional 1:4.\n")
+cat("   Sin embargo, el modelo estimado incluye un intercepto libre,\n")
+cat("   lo cual puede sesgar la estimación de la pendiente.\n\n")
+cat("2. La prueba en 7c evalúa la pendiente en un modelo con intercepto.\n")
+cat("   Si el intercepto es significativamente distinto de cero,\n")
+cat("   la relación NO es estrictamente proporcional, y la comparación\n")
+cat("   con beta1 = 4 pierde parte de su validez conceptual.\n\n")
+cat("3. Para una prueba más correcta de la sabiduría convencional,\n")
+cat("   debería ajustarse un modelo sin intercepto (pasa por el origen)\n")
+cat("   y luego verificar si la pendiente es estadísticamente igual a 4.\n")
+
+# Verificar si el intercepto es significativo
+p_intercepto <- summary(modelo_7a)$coefficients["(Intercept)", "Pr(>|t|)"]
+cat("\np-value del intercepto:", round(p_intercepto, 6), "\n")
+if (p_intercepto < 0.05) {
+  cat("El intercepto ES significativo → el modelo con intercepto NO representa\n")
+  cat("la relación proporcional pura. La crítica es válida.\n")
+} else {
+  cat("El intercepto NO es significativo → el modelo con intercepto es razonable.\n")
+}
+
+# ----------------------------------------------------------
+# 7e. Modelo mejorado: regresión sin intercepto (pasa por el origen)
+#     Este modelo representa mejor la hipótesis proporcional:
+#     Total_US_Gross = beta1 * Opening_Gross
+# ----------------------------------------------------------
+modelo_7e <- lm(Total_US_Gross ~ Opening_Gross - 1, data = datos)
+
+cat("\n--- 7e. Modelo mejorado: regresión SIN intercepto (origen) ---\n")
+summary(modelo_7e)
+
+beta1_7e <- coef(modelo_7e)["Opening_Gross"]
+cat("Pendiente estimada (sin intercepto):", round(beta1_7e, 4), "\n")
+cat("Interpretación: Por cada dólar recaudado en el fin de semana de apertura,\n")
+cat("  la película recauda en total aproximadamente",
+    round(beta1_7e, 2), "dólares en EE.UU.\n")
+
+tabla_7e <- as.data.frame(summary(modelo_7e)$coefficients)
+tabla_7e$Variable <- rownames(tabla_7e)
+tabla_7e <- tabla_7e %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+print(tabla_7e)
+write_xlsx(tabla_7e, "C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_7e_regresion_sin_intercepto.xlsx")  # <-- Ajustar ruta
+
+# ----------------------------------------------------------
+# 7f. Prueba de la sabiduría convencional con el modelo mejorado
+#     H0: beta1 = 4  (Opening Weekend = 25% del total)
+#     H1: beta1 ≠ 4
+# ----------------------------------------------------------
+cat("\n--- 7f. Prueba H0: beta1 = 4 usando el modelo sin intercepto ---\n")
+
+beta1_7e_val <- coef(modelo_7e)["Opening_Gross"]
+se_7e        <- summary(modelo_7e)$coefficients["Opening_Gross", "Std. Error"]
+gl_7e        <- df.residual(modelo_7e)
+
+t_stat_7f  <- (beta1_7e_val - beta1_teorico) / se_7e
+p_value_7f <- 2 * pt(-abs(t_stat_7f), df = gl_7e)
+
+cat("Pendiente estimada (sin intercepto):", round(beta1_7e_val, 4), "\n")
+cat("Estadístico t:", round(t_stat_7f, 4), "\n")
+cat("p-value (bilateral):", round(p_value_7f, 6), "\n")
+
+if (p_value_7f < 0.05) {
+  cat("Decisión: Rechazamos H0 ✔\n")
+  cat("Conclusión: Con el modelo sin intercepto, la sabiduría convencional\n")
+  cat("(Opening = 25% del total) SÍ puede rechazarse estadísticamente.\n")
+} else {
+  cat("Decisión: No rechazamos H0 ✘\n")
+  cat("Conclusión: No hay evidencia suficiente para rechazar que Opening = 25% del total.\n")
+}
+
+# ----------------------------------------------------------
+# 7g. Proporción de variación explicada (R²)
+#     Para el modelo con intercepto (7a)
+# ----------------------------------------------------------
+cat("\n--- 7g. R² del modelo con intercepto (7a) ---\n")
+
+r2_7a <- summary(modelo_7a)$r.squared
+cat("R² =", round(r2_7a * 100, 2), "%\n")
+cat("Interpretación: El", round(r2_7a * 100, 2),
+    "% de la variación en la recaudación total en EE.UU.\n",
+    "es explicado por la variación en la recaudación del fin de semana de apertura.\n")
+
+# Tabla resumen final Q7
+tabla_7g <- data.frame(
+  Modelo                      = c("Con intercepto (7a)", "Sin intercepto (7e)"),
+  Pendiente_Estimada          = round(c(coef(modelo_7a)["Opening_Gross"],
+                                         coef(modelo_7e)["Opening_Gross"]), 4),
+  R_Cuadrado                  = round(c(summary(modelo_7a)$r.squared,
+                                         summary(modelo_7e)$r.squared), 4),
+  H0_beta1_4_p_value          = round(c(p_value_7c, p_value_7f), 6),
+  Rechaza_H0_al_5pct          = c(p_value_7c < 0.05, p_value_7f < 0.05)
+)
+
+print(tabla_7g)
+write_xlsx(tabla_7g, "C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_7g_resumen_regresiones.xlsx")  # <-- Ajustar ruta
+
