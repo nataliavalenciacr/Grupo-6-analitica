@@ -688,6 +688,167 @@ tabla_7g <- data.frame(
   Rechaza_H0_al_5pct          = c(p_value_7c < 0.05, p_value_7f < 0.05)
 )
 
+
 print(tabla_7g)
 write_xlsx(tabla_7g, "C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_7g_resumen_regresiones.xlsx")  # <-- Ajustar ruta
+
+# ----------------------------------------------------------
+# 8a. Modelo completo (todas las variables disponibles)
+# ----------------------------------------------------------
+modelo_8a <- lm(
+  Total_US_Gross ~ Budget + Comedy + MPAA_D + Known_Story + Sequel +
+    Opening_Theatres + Summer + Holiday + Christmas +
+    Opening_Gross + Critics,
+  data = datos
+)
+
+cat("--- 8a. Modelo completo ---\n")
+print(summary(modelo_8a))
+
+# ----------------------------------------------------------
+# 8b. Eliminación de variables no significativas (p > 10%)
+#     Se eliminan una a una (backward stepwise manual)
+# ----------------------------------------------------------
+
+# Iteración: eliminar la variable con mayor p-value > 0.10
+# Después de revisar summary(modelo_8a), se construye el modelo final
+
+modelo_8b <- lm(
+  Total_US_Gross ~ Opening_Gross + Critics + Budget + MPAA_D,
+  data = datos
+)
+# Nota: ajusta las variables según los p-values reales que obtengas.
+# Conserva solo aquellas con p < 0.10.
+
+cat("\n--- 8b. Modelo final (solo variables significativas al 10%) ---\n")
+print(summary(modelo_8b))
+
+tabla_8b <- as.data.frame(summary(modelo_8b)$coefficients)
+tabla_8b$Variable <- rownames(tabla_8b)
+tabla_8b <- tabla_8b %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+print(tabla_8b)
+
+write_xlsx(
+  tabla_8b,
+  "C:\\Users\\danie\\OneDrive\\Documentos\\CONTADURIA\\TERCER SEMESTRE\\ANÁLISIS DE LOS NEGOCIOS\\tabla_8b_modelo_final.xlsx"  # <-- Ajustar ruta
+)
+
+# ----------------------------------------------------------
+# 8c. Predicción para "Flags of Our Fathers"
+#     Características de la película (según el dataset):
+#     - Buscar la fila de "Flags of Our Fathers" en los datos
+# ----------------------------------------------------------
+cat("\n--- 8c. Predicción para Flags of Our Fathers ---\n")
+
+flags <- datos %>% filter(grepl("Flags", Movie, ignore.case = TRUE))
+print(flags)
+
+pred_8c <- predict(
+  modelo_8b,
+  newdata  = flags,
+  interval = "prediction",
+  level    = 0.95
+)
+
+cat("Estimación puntual (Total U.S. Gross):", 
+    format(pred_8c[1, "fit"], big.mark = ",", prefix = "$"), "\n")
+cat("Intervalo de predicción 95%:\n")
+cat("  Límite inferior:", 
+    format(pred_8c[1, "lwr"], big.mark = ",", prefix = "$"), "\n")
+cat("  Límite superior:", 
+    format(pred_8c[1, "upr"], big.mark = ",", prefix = "$"), "\n")
+
+# ----------------------------------------------------------
+# 8d. ¿Cuánto pagar para subir 10 puntos en Critics?
+#     Si Critics sube 10 pts → Total_US_Gross sube en:
+#     delta = 10 * coef(Critics)
+#     Griffith debería invertir MENOS que ese delta.
+# ----------------------------------------------------------
+cat("\n--- 8d. Valor de +10 puntos en Critics para Flags of Our Fathers ---\n")
+
+coef_critics <- coef(modelo_8b)["Critics"]
+ganancia_10pts <- 10 * coef_critics
+
+cat("Coeficiente de Critics:          ", format(coef_critics), "por punto\n")
+cat("Ganancia estimada por +10 puntos:", format(ganancia_10pts), "\n")
+cat("Griffith NO debería pagar más de", format(ganancia_10pts),
+    "para obtener 10 puntos adicionales en Critics.\n")
+cat("Nota: este cálculo mantiene todas las demás variables constantes\n")
+cat("(ceteris paribus) y asume que el modelo es válido en ese rango.\n")
+
+
+# ============================================================
+# PREGUNTA 9: ¿Los críticos afectan MENOS a las comedias?
+# Interacción entre Critics y Comedy
+# ============================================================
+
+"n==========================================================="
+" PREGUNTA 9: Efecto diferencial de Critics en Comedia"
+"==========================================================="
+
+# ----------------------------------------------------------
+# 9a. Agregar término de interacción: Critics × Comedy
+#     Si el coeficiente de interacción es significativo y NEGATIVO,
+#     significa que para las comedias el efecto de Critics
+#     sobre Total_US_Gross es MENOR (Griffith tendría razón).
+# ----------------------------------------------------------
+modelo_9 <- lm(
+  Total_US_Gross ~ Opening_Gross + Critics + Sequel +
+    Comedy + Critics:Comedy,
+  data = datos
+)
+
+cat("--- 9. Modelo con interacción Critics × Comedy ---\n")
+print(summary(modelo_9))
+
+tabla_9 <- as.data.frame(summary(modelo_9)$coefficients)
+tabla_9$Variable <- rownames(tabla_9)
+tabla_9 <- tabla_9 %>%
+  select(Variable, Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  rename(
+    Coeficiente    = Estimate,
+    Error_Estandar = `Std. Error`,
+    Estadistico_t  = `t value`,
+    P_Value        = `Pr(>|t|)`
+  )
+print(tabla_9)
+
+write_xlsx(
+  tabla_9,
+  "C:\\Users\\danie\\OneDrive\\Documentos\\CONTADURIA\\TERCER SEMESTRE\\ANÁLISIS DE LOS NEGOCIOS\\tabla_9_interaccion.xlsx"  # <-- Ajustar ruta
+)
+
+# Interpretación automática del término de interacción
+coef_interaccion <- coef(modelo_9)["Critics:Comedy"]
+p_interaccion    <- summary(modelo_9)$coefficients["Critics:Comedy", "Pr(>|t|)"]
+
+cat("\n--- Interpretación del término de interacción ---\n")
+cat("Coeficiente Critics:Comedy:", round(coef_interaccion, 4), "\n")
+cat("p-value:                   ", round(p_interaccion, 6), "\n")
+
+if (p_interaccion < 0.10) {
+  cat("Decisión: El término de interacción ES significativo al 10% ✔\n")
+  if (coef_interaccion < 0) {
+    cat("Conclusión: Griffith tiene RAZÓN.\n")
+    cat("Los críticos afectan MENOS la recaudación de las comedias.\n")
+    cat("El efecto neto de Critics para comedias es:",
+        round(coef(modelo_9)["Critics"] + coef_interaccion, 4), "por punto.\n")
+  } else {
+    cat("Conclusión: El efecto de Critics en comedias es MAYOR, no menor.\n")
+    cat("Griffith NO tiene razón en este caso.\n")
+  }
+} else {
+  cat("Decisión: El término de interacción NO es significativo al 10% ✘\n")
+  cat("Conclusión: No hay evidencia estadística de que los críticos afecten\n")
+  cat("de forma diferente a las comedias vs. otros géneros.\n")
+  cat("La teoría de Griffith NO puede probarse con estos datos.\n")
+}
+
 
