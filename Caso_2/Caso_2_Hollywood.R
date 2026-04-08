@@ -255,32 +255,32 @@ if (prueba_4$p.value < 0.05) {
 write_xlsx(tabla_4,
   "C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso 2/tabla_4.xlsx") #Aquí si quieren descargar las tablas deben cambiar el lugar para que les corra el código
   
+#PUNTO 5
 
-
-# Crear variable Comedy (1 = comedia, 0 = otro genero) necesaria para preguntas 5 y 7
+# variable Comedy (1 = comedia, 0 = otro genero)
 datos <- datos %>%
   mutate(Comedy = ifelse(Genre == "Comedy", 1, 0))
 
-# Crear variable ROI necesaria para la pregunta 5b
+# variable ROI 
 datos <- datos %>%
   mutate(ROI = (Total_US_Gross - Budget) / Budget)
 
-cat("Datos cargados correctamente:", nrow(datos), "películas.\n\n")
+cat("Datos cargados correctamente:", nrow(datos), "películas.\n\n") #Solo para comprobar
 
 
-# ============================================================
+# ------------------------------------------------------------
 # PREGUNTA 5: MODELO DE REGRESIÓN ANTES DE LA PRODUCCIÓN
-# ============================================================
-# Variables predictoras consideradas (factores conocidos ANTES de producir):
+# ------------------------------------------------------------
+# Variables predictoras consideradas (conocidas ANTES de producir):
 #   - Budget       : presupuesto de producción (proxy de calidad y elenco)
 #   - Comedy       : indicador de género comedia (1) vs. otro (0)
 #   - MPAA_D       : indicador de clasificación R (1) vs. otra (0)
 #   - Known_Story  : historia conocida/adaptación (1) vs. guion original (0)
 #   - Sequel       : secuela (1) vs. primera película (0)
 
-cat("===========================================================\n")
+cat("------------------------------------------------------------\n")
 cat(" PREGUNTA 5: Regresión — factores PRE-PRODUCCIÓN\n")
-cat("===========================================================\n\n")
+cat("------------------------------------------------------------\n\n")
 
 # ----------------------------------------------------------
 # 5a. Modelo completo con todas las variables pre-producción
@@ -339,7 +339,7 @@ tabla_5b <- tabla_5b %>%
   )
 
 print(tabla_5b)
-write_xlsx(tabla_5b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_5b_modelo_preproduccion.xlsx")  # <-- Ajustar ruta si desea guardar
+#write_xlsx(tabla_5b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_5b_modelo_preproduccion.xlsx") #algo esta fallando con los permisos de esta linea
 
 # ----------------------------------------------------------
 # 5c. Interpretación: ¿Secuelas vs. no secuelas?
@@ -348,25 +348,25 @@ write_xlsx(tabla_5b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_
 # ----------------------------------------------------------
 coef_sequel <- coef(modelo_5b_final)["Sequel"]
 
-cat("\n--- 5c. Efecto de ser secuela sobre Total U.S. Gross ---\n")
+cat("\n--- 5c. Efecto de ser secuela sobre Total U.S. Gross Inc---\n")
 cat("Coeficiente de Sequel:", scales::dollar(coef_sequel), "\n")
 
 if (coef_sequel > 0) {
-  cat("Interpretación: Las SECUELAS recaudan en promedio",
+  cat("Las SECUELAS recaudan en promedio",
       scales::dollar(coef_sequel),
-      "MÁS que las películas no secuelas,\n",
+      "más que las películas no secuelas,\n",
       "manteniendo constantes las demás variables.\n")
 } else {
-  cat("Interpretación: Las SECUELAS recaudan en promedio",
+  cat("Las SECUELAS recaudan en promedio",
       scales::dollar(abs(coef_sequel)),
-      "MENOS que las películas no secuelas,\n",
+      "menos que las películas no secuelas,\n",
       "manteniendo constantes las demás variables.\n")
 }
 
 
-# ============================================================
+# ------------------------------------------------------------
 # PREGUNTA 6: MODELO DE REGRESIÓN — APERTURA DE FIN DE SEMANA
-# ============================================================
+# ------------------------------------------------------------
 # Factores adicionales conocidos ANTES del fin de semana de apertura:
 #   - Opening_Theatres : número de salas en el fin de semana de estreno
 #   - Summer           : estreno en temporada de verano (1/0)
@@ -374,9 +374,9 @@ if (coef_sequel > 0) {
 #   - Christmas        : estreno en temporada navideña (1/0)
 # Variable dependiente: Opening_Gross (recaudación del fin de semana de apertura)
 
-cat("\n===========================================================\n")
+cat("\n------------------------------------------------------------\n")
 cat(" PREGUNTA 6: Regresión — Opening Weekend Box-Office Gross\n")
-cat("===========================================================\n\n")
+cat("------------------------------------------------------------\n\n")
 
 # ----------------------------------------------------------
 # 6a. Modelo completo (pre-producción + factores de apertura)
@@ -443,7 +443,7 @@ tabla_6b <- tabla_6b %>%
   )
 
 print(tabla_6b)
-write_xlsx(tabla_6b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6b_modelo_apertura.xlsx")  # <-- Ajustar ruta si desea guardar
+write_xlsx(tabla_6b,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6b_modelo_apertura.xlsx")  
 
 # ----------------------------------------------------------
 # 6c. Interpretación de cada coeficiente del modelo final
@@ -502,21 +502,19 @@ tabla_6d <- data.frame(
   Cambio_Opening_Gross = scales::dollar(c(cambio_puntual, ic_cambio_inferior, ic_cambio_superior))
 )
 print(tabla_6d)
-write_xlsx(tabla_6d,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6d_efecto_salas.xlsx")  # <-- Ajustar ruta si desea guardar
+write_xlsx(tabla_6d,"C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_6d_efecto_salas.xlsx")  
 
 
-# ============================================================
+# ------------------------------------------------------------
 # PREGUNTA 7: RELACIÓN Total U.S. Gross ~ Opening Weekend Gross
-# ============================================================
+# ------------------------------------------------------------
 # Se examina la "sabiduría convencional" de Hollywood:
 # "El 25% de la recaudación total en EE.UU. llega durante el fin de semana de apertura"
-# Si eso fuera cierto, entonces: Opening_Gross = 0.25 * Total_US_Gross
-# => Total_US_Gross = (1/0.25) * Opening_Gross = 4 * Opening_Gross
-# => El coeficiente de pendiente debería ser 4.
+# Si eso fuera cierto, Opening_Gross = 0.25 * Total_US_Gross
 
-cat("\n===========================================================\n")
+cat("\n------------------------------------------------------------\n")
 cat(" PREGUNTA 7: Total U.S. Gross ~ Opening Weekend Gross\n")
-cat("===========================================================\n\n")
+cat("------------------------------------------------------------\n\n")
 
 # ----------------------------------------------------------
 # 7a. Regresión lineal simple: Total_US_Gross ~ Opening_Gross
@@ -553,7 +551,7 @@ cat("(es decir, Total_US_Gross = 4 × Opening_Gross)\n")
 # ----------------------------------------------------------
 # 7c. Prueba de hipótesis: ¿Se puede rechazar que beta1 = 4?
 #     H0: beta1 = 4  (la sabiduría convencional es correcta)
-#     H1: beta1 ≠ 4
+#     H1: beta1 Diferente a 4
 #
 #     Estadístico t = (beta1_estimado - beta1_teorico) / SE(beta1)
 # ----------------------------------------------------------
@@ -588,7 +586,7 @@ cat("\n--- 7d. Crítica del análisis en 7c ---\n")
 cat("CRÍTICA ESTADÍSTICA:\n")
 cat("1. El modelo de regresión lineal simple asume que la relación entre\n")
 cat("   Opening_Gross y Total_US_Gross pasa por el origen (intercepto = 0)\n")
-cat("   si queremos representar fielmente la relación proporcional 1:4.\n")
+cat("   si queremos representar la relación proporcional 1:4.\n")
 cat("   Sin embargo, el modelo estimado incluye un intercepto libre,\n")
 cat("   lo cual puede sesgar la estimación de la pendiente.\n\n")
 cat("2. La prueba en 7c evalúa la pendiente en un modelo con intercepto.\n")
@@ -603,10 +601,10 @@ cat("   y luego verificar si la pendiente es estadísticamente igual a 4.\n")
 p_intercepto <- summary(modelo_7a)$coefficients["(Intercept)", "Pr(>|t|)"]
 cat("\np-value del intercepto:", round(p_intercepto, 6), "\n")
 if (p_intercepto < 0.05) {
-  cat("El intercepto ES significativo → el modelo con intercepto NO representa\n")
+  cat("El intercepto ES significativo por lo tanto el modelo con intercepto NO representa\n")
   cat("la relación proporcional pura. La crítica es válida.\n")
 } else {
-  cat("El intercepto NO es significativo → el modelo con intercepto es razonable.\n")
+  cat("El intercepto NO es significativo por lo tanto el modelo con intercepto es razonable.\n")
 }
 
 # ----------------------------------------------------------
@@ -657,11 +655,11 @@ cat("Estadístico t:", round(t_stat_7f, 4), "\n")
 cat("p-value (bilateral):", round(p_value_7f, 6), "\n")
 
 if (p_value_7f < 0.05) {
-  cat("Decisión: Rechazamos H0 ✔\n")
+  cat("Decisión: Rechazamos H0 \n")
   cat("Conclusión: Con el modelo sin intercepto, la sabiduría convencional\n")
   cat("(Opening = 25% del total) SÍ puede rechazarse estadísticamente.\n")
 } else {
-  cat("Decisión: No rechazamos H0 ✘\n")
+  cat("Decisión: No rechazamos H0 \n")
   cat("Conclusión: No hay evidencia suficiente para rechazar que Opening = 25% del total.\n")
 }
 
@@ -687,7 +685,6 @@ tabla_7g <- data.frame(
   H0_beta1_4_p_value          = round(c(p_value_7c, p_value_7f), 6),
   Rechaza_H0_al_5pct          = c(p_value_7c < 0.05, p_value_7f < 0.05)
 )
-
 
 print(tabla_7g)
 write_xlsx(tabla_7g, "C:/Users/juanm/Documents/JAVERIANA/Analítica/Caso 2/tabla_7g_resumen_regresiones.xlsx")  # <-- Ajustar ruta
