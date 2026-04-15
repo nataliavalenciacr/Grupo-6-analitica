@@ -199,11 +199,11 @@ write_xlsx(list("Coeficientes" = coef_dummy,
 "En el modelo naive, el coeficiente de Gasto_Publicidad era 6.76: cada dólar invertido en publicidad parecía generar $6.76 adicionales en ventas.
  Al introducir la dummy Holliday_seasson, el coeficiente cae a 3.656, es decir, casi a la mitad.
   Esto significa que el efecto real de la publicidad es bastante menor de lo que el modelo naive sugería: cada dólar adicional en publicidad genera en promedio $3.66 USD en ventas, manteniendo constante la temporada.
-¿Por qué bajó tanto? Esto es un caso clásico de sesgo por variable omitida. El modelo naive estaba "atribuyéndole" a la publicidad parte de un efecto que en realidad correspondía a la estacionalidad. 
+¿Por qué bajó tanto? Esto es un caso clásico de sesgo por variable omitida. El modelo naive estaba atribuyéndole a la publicidad parte de un efecto que en realidad correspondía a la estacionalidad. 
 En las semanas normales, el Opry suele invertir más publicidad y vender más; en las semanas de temporada baja (diciembre-enero) invierte menos publicidad y también vende mucho menos. Como las dos variables se mueven juntas,
- el modelo naive no podía distinguir cuánto de la caída en ventas era por menos publicidad y cuánto por la temporada misma. Al meter la dummy, "limpiamos" el coeficiente y el efecto puro de la publicidad queda en $3.66.
+ el modelo naive no podía distinguir cuánto de la caída en ventas era por menos publicidad y cuánto por la temporada misma. Al meter la dummy, limpiamos el coeficiente y el efecto puro de la publicidad queda en $3.66.
 Otro cambio importante: la significancia bajó (de tres estrellas *** a una sola *, con p-valor 0.0347). Sigue siendo estadísticamente significativo al 5%, 
-pero con mucha menos fuerza que antes. Esto refuerza la idea de que parte del "poder explicativo" del gasto publicitario en el modelo naive era falso — venía prestado de la estacionalidad.
+pero con mucha menos fuerza que antes. Esto refuerza la idea de que parte del poder explicativo del gasto publicitario en el modelo naive era falso — venía prestado de la estacionalidad.
 Y un detalle muy positivo: el R² casi se duplicó, pasando de 0.1237 a 0.2448. El modelo ahora explica el 24.5% de la variación en ventas, frente al 12.4% anterior. Confirmamos que agregar la dummy fue una mejora sustancial."
 # 2. ¿Cómo interpretan el coeficiente de Holliday_seasson?
 "El coeficiente de Holliday_seasson es -607.000 USD (en notación científica: -6.070e+05). La interpretación es la siguiente: durante las semanas de temporada baja (entre el 23 de diciembre y el 31 de enero), 
