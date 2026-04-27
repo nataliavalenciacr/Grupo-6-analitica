@@ -5,6 +5,8 @@
 library(readxl)    
 library(dplyr)     
 library(ggplot2)
+library(carret)
+library(pROC)
 setwd("C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso 4")
 datos <- read_excel("DATA.xlsx", sheet = "Case Data")
 dim(datos)
@@ -147,3 +149,177 @@ tabla_medias <- datos %>%
 
 print(tabla_medias)
 write_xlsx(tabla_medias, "tabla_medias_por_churn.xlsx")
+
+
+#Parte 3
+#0. INICIAR LAS VARIABLES SIN ESPACIOS
+datos_modelo <- datos %>% select(-ID)
+
+# Imputar valores NA con la mediana de cada columna numérica.
+# Se usa la mediana (en lugar de la media) por ser más robusta ante valores extremos.
+datos_modelo <- datos_modelo %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+# Verificar que no queden variables NA
+cat("Valores NA restantes:", sum(is.na(datos_modelo)), "\n")
+
+#1. DIVISIÓN EN CONJUNTO DE ENTRENAMIENTO (TRAIN) Y PRUEBA (TEST)
+
+# Fijar semilla para que los resultados tengan un estandar
+set.seed(123)
+
+# Crear índices para el 70% de los datos como entrenamiento (Se pueden cambiar los valores)
+# Se usa createDataPartition para mantener la proporción de Churn en ambos conjuntos (muestreo estratificado)
+indice_train <- createDataPartition(datos_modelo$Churn, p = 0.70, list = FALSE)
+
+# Separar los conjuntos
+train <- datos_modelo[indice_train, ]   # 70% para entrenar el modelo
+test  <- datos_modelo[-indice_train, ]  # 30% para evaluar el modelo
+
+# Tamaños de la muestra
+cat("Observaciones en entrenamiento:", nrow(train), "\n")
+cat("Observaciones en prueba:       ", nrow(test),  "\n")
+
+# Verificar que la proporción de Churn es similar en ambos conjuntos
+cat("\nProporción de Churn en TRAIN:\n"); print(prop.table(table(train$Churn)) * 100)
+cat("\nProporción de Churn en TEST:\n");  print(prop.table(table(test$Churn))  * 100)
+
+#2. CONSTRUCCIÓN DEL MODELO DE REGRESIÓN LOGÍSTICA
+
+# glm() con family = binomial ajusta una regresión logística.
+# La variable dependiente es Churn (1 = se fue, 0 = se quedó).
+modelo_logistico <- glm(
+  Churn ~ Customer_Age + CHI_Score_M0 + CHI_Score_01 +
+    Support_Cases_M0 + Support_Cases_01 +
+    SP_M0 + SP_01 +
+    Logins_01 + Blog_Articles_01 + Views_01 + Days_Since_Login_01,
+  data   = train,
+  family = binomial(link = "logit")
+)
+
+# Resumen completo del modelo: coeficientes, errores estándar, valores z y p
+cat("\n RESUMEN DEL MODELO DE REGRESIÓN LOGÍSTICA \n")
+print(summary(modelo_logistico))
+
+#3. RESULTADOS DEL MODELO - TABLA DE COEFICIENTES, SIGNIFICANCIA Y ODDS RATIOS
+
+# Extraer coeficientes y sus intervalos de confianza al 95%
+coeficientes   <- coef(modelo_logistico)
+ic_95          <- confint(modelo_logistico)   # Intervalos de confianza para los log-odds
+
+# Calcular Odds Ratios: exp(coeficiente)
+# Un OR > 1 indica mayor probabilidad de churn; OR < 1 indica menor probabilidad.
+odds_ratios    <- exp(coeficientes)
+ic_or          <- exp(ic_95)
+
+# Obtener valores p del resumen del modelo
+p_valores      <- summary(modelo_logistico)$coefficients[, 4]
+
+# Construir tabla completa de resultados
+tabla_resultados <- data.frame(
+  Variable       = names(coeficientes),
+  Coeficiente    = round(coeficientes, 4),
+  Odds_Ratio     = round(odds_ratios, 4),
+  IC_2.5         = round(ic_or[, 1], 4),
+  IC_97.5        = round(ic_or[, 2], 4),
+  P_valor        = round(p_valores, 4),
+  Significancia  = ifelse(p_valores < 0.001, "***",
+                   ifelse(p_valores < 0.01,  "**",
+                   ifelse(p_valores < 0.05,  "*",
+                   ifelse(p_valores < 0.1,   ".",  ""))))
+)
+
+cat("\n===== TABLA DE COEFICIENTES, ODDS RATIOS E INTERVALOS DE CONFIANZA =====\n")
+print(tabla_resultados)
+
+# Exportar tabla a Excel
+library(writexl)
+write_xlsx(tabla_resultados, "tabla_regresion_logistica.xlsx")
+cat("Tabla exportada como 'tabla_regresion_logistica.xlsx'\n")
+
+#4. INTERPRETACIÓN DE COEFICIENTES
+
+cat("\n INTERPRETACIÓN DE COEFICIENTES (ODDS RATIOS) \n")
+
+# Filtrar solo variables estadísticamente significativas (p < 0.05)
+vars_significativas <- tabla_resultados %>%
+  filter(Variable != "(Intercept)", P_valor < 0.05) %>%
+  arrange(desc(abs(Coeficiente)))
+
+cat("\nVariables estadísticamente significativas (p < 0.05):\n")
+print(vars_significativas)
+
+# Separar variables que AUMENTAN y DISMINUYEN el riesgo de churn
+cat("\n-- Variables que AUMENTAN el riesgo de churn (OR > 1):\n")
+print(vars_significativas %>% filter(Odds_Ratio > 1) %>% select(Variable, Odds_Ratio, P_valor))
+
+cat("\n-- Variables que DISMINUYEN el riesgo de churn (OR < 1):\n")
+print(vars_significativas %>% filter(Odds_Ratio < 1) %>% select(Variable, Odds_Ratio, P_valor))
+
+#5. IDENTIFICACIÓN DE LOS 3 FACTORES PRINCIPALES (DRIVERS MÁS IMPORTANTES)
+
+# Se identifican los 3 factores más influyentes usando el valor absoluto del
+# estadístico z (coeficiente / error estándar), que refleja la importancia
+# relativa de cada variable dentro del modelo.
+estadisticos_z <- abs(summary(modelo_logistico)$coefficients[, 3])
+
+tabla_importancia <- data.frame(
+  Variable    = names(estadisticos_z),
+  Estadistico_Z = round(estadisticos_z, 4),
+  Odds_Ratio  = round(exp(coeficientes), 4),
+  P_valor     = round(p_valores, 4)
+) %>%
+  filter(Variable != "(Intercept)") %>%
+  arrange(desc(Estadistico_Z))
+
+cat("\n===== RANKING DE IMPORTANCIA DE VARIABLES (por estadístico |z|) =====\n")
+print(tabla_importancia)
+
+# Top 3 factores
+top3 <- tabla_importancia[1:3, ]
+cat("\n===== TOP 3 FACTORES PRINCIPALES DE CHURN =====\n")
+print(top3)
+
+# Visualización del ranking de importancia
+ggplot(tabla_importancia, aes(x = reorder(Variable, Estadistico_Z), y = Estadistico_Z)) +
+  geom_bar(stat = "identity", fill = "#4a90d9") +
+  geom_bar(data = top3,
+           aes(x = reorder(Variable, Estadistico_Z), y = Estadistico_Z),
+           stat = "identity", fill = "#e05c5c") +
+  coord_flip() +
+  labs(
+    title    = "Importancia de variables en el modelo logístico",
+    subtitle = "Top 3 resaltados en rojo | Métrica: |Estadístico Z|",
+    x        = "Variable",
+    y        = "Importancia (|z|)"
+  ) +
+  theme_minimal()
+
+ggsave("importancia_variables_logistico.png", width = 8, height = 5, dpi = 300)
+
+# 5b. EVALUACIÓN DEL MODELO EN EL CONJUNTO DE PRUEBA (TEST)
+
+# Predecir probabilidades de churn para el conjunto de prueba
+probabilidades_test <- predict(modelo_logistico, newdata = test, type = "response")
+
+# Convertir probabilidades a clases usando umbral de 0.5
+# (si prob >= 0.5, se predice churn = 1)
+predicciones_clase <- ifelse(probabilidades_test >= 0.5, 1, 0)
+predicciones_clase <- as.factor(predicciones_clase)
+
+# Matriz de confusión: compara predicciones vs. valores reales
+cat("\n===== MATRIZ DE CONFUSIÓN (CONJUNTO DE PRUEBA) =====\n")
+conf_matrix <- confusionMatrix(predicciones_clase, test$Churn, positive = "1")
+print(conf_matrix)
+
+# Curva ROC y AUC (Area Under the Curve)
+# AUC cercano a 1 indica excelente capacidad discriminatoria del modelo
+roc_obj <- roc(as.numeric(as.character(test$Churn)), probabilidades_test)
+cat("\nAUC del modelo:", round(auc(roc_obj), 4), "\n")
+
+# Gráfico de la curva ROC
+plot(roc_obj,
+     main = paste("Curva ROC - AUC =", round(auc(roc_obj), 4)),
+     col  = "#4a90d9",
+     lwd  = 2)
+abline(a = 0, b = 1, lty = 2, col = "gray")  # Línea de referencia (clasificador aleatorio)
