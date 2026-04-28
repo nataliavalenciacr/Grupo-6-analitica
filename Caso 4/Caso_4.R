@@ -5,7 +5,7 @@
 library(readxl)    
 library(dplyr)     
 library(ggplot2)
-library(carret)
+library(caret)
 library(pROC)
 setwd("C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso 4")
 datos <- read_excel("DATA.xlsx", sheet = "Case Data")
