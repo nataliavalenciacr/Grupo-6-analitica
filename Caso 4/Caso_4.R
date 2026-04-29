@@ -201,6 +201,34 @@ modelo_logistico <- glm(
 cat("\n RESUMEN DEL MODELO DE REGRESIÓN LOGÍSTICA \n")
 print(summary(modelo_logistico))
 
+# R² de McFadden
+r2_mcfadden <- 1 - (logLik(modelo_logistico) / logLik(modelo_nulo))
+cat("R² de McFadden:", round(r2_mcfadden, 4), "\n")
+
+#install.packages("pscl")
+library(pscl)
+r2_completo <- pR2(modelo_logistico)
+print(r2_completo)
+library(writexl)
+
+tabla_r2 <- data.frame(
+  Métrica = c("Log-Likelihood (modelo completo)", 
+              "Log-Likelihood (modelo nulo)", 
+              "G2 (estadístico)",
+              "R² McFadden", 
+              "R² ML",
+              "R² CU (Nagelkerke)"),
+  Valor = c(round(-855.46141981, 4),
+            round(-896.28084296, 4),
+            round(81.63884629, 4),
+            round(0.04554312, 4),
+            round(0.01820287, 4),
+            round(0.05483899, 4))
+)
+
+print(tabla_r2)
+write_xlsx(tabla_r2, "tabla_r2_mcfadden.xlsx")
+
 #3. RESULTADOS DEL MODELO - TABLA DE COEFICIENTES, SIGNIFICANCIA Y ODDS RATIOS
 
 # Extraer coeficientes y sus intervalos de confianza al 95%
