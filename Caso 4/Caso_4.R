@@ -7,6 +7,7 @@ library(dplyr)
 library(ggplot2)
 library(caret)
 library(pROC)
+library(openxlsx)
 setwd("C:/Users/natal/OneDrive/Personal/Universidad (1)/Noveno semestre/Analítica de datos/Caso 4")
 datos <- read_excel("DATA.xlsx", sheet = "Case Data")
 dim(datos)
@@ -352,32 +353,28 @@ plot(roc_obj,
      lwd  = 2)
 abline(a = 0, b = 1, lty = 2, col = "gray")  # Línea de referencia (clasificador aleatorio)
 
-library(openxlsx)
-library(pROC)
-
-ruta <- "C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/DATA.xlsx"
 
 # 4.1 PREDICCIÓN
-test_data$prob_churn <- predict(modelo_logit, newdata = test_data, type = "response")
-umbral <- quantile(test_data$prob_churn, 0.90)
-test_data$pred_churn <- as.factor(if_else(test_data$prob_churn >= umbral, "1", "0"))
+
+test$prob_churn  <- predict(modelo_logistico, newdata = test, type = "response")
+umbral           <- quantile(test$prob_churn, 0.90)
+test$pred_churn  <- as.factor(if_else(test$prob_churn >= umbral, "1", "0"))
 
 # 4.2 TOP 100
-top100 <- test_data |>
+top100 <- test |>
   arrange(desc(prob_churn)) |>
   slice(1:100) |>
   select(
-    "ID"                   = ID,
-    "Edad Cliente (meses)" = `Customer Age (in months)`,
-    "CHI Score"            = `CHI Score Month 0`,
+    "Edad Cliente (meses)" = Customer_Age,
+    "CHI Score"            = CHI_Score_M0,
     "Prob. Churn"          = prob_churn
   ) |>
   mutate("Prob. Churn" = round(`Prob. Churn`, 4))
 
 # 4.3 MATRIZ Y MÉTRICAS
 matriz <- table(
-  Real     = test_data$`Churn (1 = Yes, 0 = No)`,
-  Predicho = test_data$pred_churn
+  Real     = test$Churn,
+  Predicho = test$pred_churn
 )
 
 print(matriz)
@@ -400,8 +397,8 @@ print(metricas)
 
 # 4.4 ROC Y AUC
 roc_obj   <- roc(
-  as.numeric(as.character(test_data$`Churn (1 = Yes, 0 = No)`)),
-  test_data$prob_churn
+  as.numeric(as.character(test$Churn)),
+  test$prob_churn
 )
 
 auc_valor <- round(auc(roc_obj), 4)
@@ -413,6 +410,10 @@ plot(roc_obj,
      lwd  = 2)
 
 # 4.5 EXPORTAR
+
+
+ruta_salida <- "evaluacion_churn.xlsx"
+
 wb <- createWorkbook()
 
 addWorksheet(wb, "Top 100 Clientes")
@@ -427,7 +428,7 @@ writeData(wb, "Metricas",
           data.frame(Métrica = "AUC", Valor = auc_valor),
           startRow = nrow(metricas) + 3)
 
-saveWorkbook(wb, "C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/evaluacion_churn.xlsx", overwrite = TRUE)
+saveWorkbook(wb, ruta_salida, overwrite = TRUE)
 cat("Exportado correctamente\n")
 
 png("C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/curva_roc.png",
