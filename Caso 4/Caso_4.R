@@ -323,3 +323,92 @@ plot(roc_obj,
      col  = "#4a90d9",
      lwd  = 2)
 abline(a = 0, b = 1, lty = 2, col = "gray")  # Línea de referencia (clasificador aleatorio)
+
+library(openxlsx)
+library(pROC)
+
+ruta <- "C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/DATA.xlsx"
+
+# 4.1 PREDICCIÓN
+test_data$prob_churn <- predict(modelo_logit, newdata = test_data, type = "response")
+umbral <- quantile(test_data$prob_churn, 0.90)
+test_data$pred_churn <- as.factor(if_else(test_data$prob_churn >= umbral, "1", "0"))
+
+# 4.2 TOP 100
+top100 <- test_data |>
+  arrange(desc(prob_churn)) |>
+  slice(1:100) |>
+  select(
+    "ID"                   = ID,
+    "Edad Cliente (meses)" = `Customer Age (in months)`,
+    "CHI Score"            = `CHI Score Month 0`,
+    "Prob. Churn"          = prob_churn
+  ) |>
+  mutate("Prob. Churn" = round(`Prob. Churn`, 4))
+
+# 4.3 MATRIZ Y MÉTRICAS
+matriz <- table(
+  Real     = test_data$`Churn (1 = Yes, 0 = No)`,
+  Predicho = test_data$pred_churn
+)
+
+print(matriz)
+
+tn <- matriz["0","0"]
+fp <- matriz["0","1"]
+fn <- matriz["1","0"]
+tp <- matriz["1","1"]
+
+accuracy      <- round((tp + tn) / sum(matriz), 4)
+sensibilidad  <- round(tp / (tp + fn), 4)
+especificidad <- round(tn / (tn + fp), 4)
+
+metricas <- tibble(
+  Métrica = c("Accuracy", "Sensibilidad", "Especificidad"),
+  Valor   = c(accuracy, sensibilidad, especificidad)
+)
+
+print(metricas)
+
+# 4.4 ROC Y AUC
+roc_obj   <- roc(
+  as.numeric(as.character(test_data$`Churn (1 = Yes, 0 = No)`)),
+  test_data$prob_churn
+)
+
+auc_valor <- round(auc(roc_obj), 4)
+cat("AUC:", auc_valor, "\n")
+
+plot(roc_obj,
+     main = paste("Curva ROC - AUC:", auc_valor),
+     col  = "#2E3B5F",
+     lwd  = 2)
+
+# 4.5 EXPORTAR
+wb <- createWorkbook()
+
+addWorksheet(wb, "Top 100 Clientes")
+writeData(wb, "Top 100 Clientes", top100)
+
+addWorksheet(wb, "Matriz Confusion")
+writeData(wb, "Matriz Confusion", as.data.frame(matriz))
+
+addWorksheet(wb, "Metricas")
+writeData(wb, "Metricas", metricas)
+writeData(wb, "Metricas",
+          data.frame(Métrica = "AUC", Valor = auc_valor),
+          startRow = nrow(metricas) + 3)
+
+saveWorkbook(wb, "C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/evaluacion_churn.xlsx", overwrite = TRUE)
+cat("Exportado correctamente\n")
+
+png("C:/Users/danie/OneDrive/Documentos/CONTADURIA/TERCER SEMESTRE/ANÁLISIS DE LOS NEGOCIOS/curva_roc.png",
+    width = 800, height = 600)
+
+plot(roc_obj,
+     main = paste("Curva ROC - AUC:", auc_valor),
+     col  = "#2E3B5F",
+     lwd  = 2)
+
+dev.off()
+cat("Gráfico exportado\n")
