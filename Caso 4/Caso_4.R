@@ -441,3 +441,23 @@ plot(roc_obj,
 
 dev.off()
 cat("Gráfico exportado\n")
+# Gráfico de errores
+errores <- data.frame(
+  Real     = as.numeric(as.character(test$Churn)),
+  Predicho = probabilidades_test
+)
+
+ggplot(errores, aes(x = as.factor(Real), y = Predicho, fill = as.factor(Real))) +
+  geom_boxplot(alpha = 0.7, outlier.alpha = 0.3) +
+  geom_hline(yintercept = 0.15, linetype = "dashed", color = "red", linewidth = 0.8) +
+  annotate("text", x = 2.4, y = 0.16, label = "Umbral referencia", 
+           color = "red", size = 3) +
+  scale_fill_manual(values = c("0" = "#8dbde4", "1" = "#e69ddf"),
+                    labels = c("No Churn", "Churn")) +
+  scale_y_continuous(breaks = seq(0, 0.35, by = 0.05)) +
+  labs(title = "Probabilidades predichas vs. Churn real",
+       x = "Churn real (0 = No, 1 = Sí)",
+       y = "Probabilidad predicha de churn",
+       fill = "Grupo") +
+  theme_minimal()
+ggsave("grafico_errores.png", width = 6, height = 4, dpi = 300)
